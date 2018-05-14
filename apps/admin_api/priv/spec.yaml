@@ -6,10 +6,37 @@ info:
     This is the documentation for eWallet Admin API.
 
 
-    All calls must be user-authenticated. That is, the client must first
-    authenticate with the API using the user's email and password.
-    On successful authentication, the API returns an authentication token
-    (i.e. `authentication_token`).
+    Before making requests, the client must call `/login` endpoint with valid user
+    and client credentials to get the authentication token. This authentication token
+    identifies the requests to the user, and is required to make other requests.
+
+
+    ## Acquiring the authentication token
+
+
+
+    ## Calling endpoints
+
+
+    If ENABLE_ADMIN_CLIENT_AUTH is set to "false" (the default value), only user credentials need to be passed in the header.
+    The header format is:
+
+
+    ```
+    Authorization=OMGAdmin Base64(user_id:authentication_token)
+    ```
+
+
+    With the exception of `/login` endpoint, it does not require an `Authorization` header.
+
+
+    If ENABLE_ADMIN_CLIENT_AUTH is set to "true", the client and user credentials must be sent
+    with the calls in the following format:
+
+
+    ```
+    Authorization=OMGAdmin Base64(api_key_id:api_key:user_id:authentication_token)
+    ```
 
 
     Once a valid `authentication_token` is received, use the given auth token
@@ -20,11 +47,16 @@ info:
     Authorization=OMGAdmin Base64(api_key_id:api_key:user_id:authentication_token)
     ```
 
+    ## Requiring client authentication
+
+
+    ## Response status
 
     Due to HTTP-RPC nature, the API will always return a `200` HTTP status,
     including on errors. Only in case of an internal server error that `500`
     will be returned.
 
+    ## Error codes
 
     Error codes are available in [html](./errors), [json](./errors.json)
     and [yaml](./errors.yaml) formats.
