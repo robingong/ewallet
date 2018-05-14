@@ -33,6 +33,91 @@ defmodule EWalletAPI.V1.TransferControllerTest do
              }
     end
 
+    test "updates the user balance and returns the updated amount when transferring
+          the same minted token" do
+      account = Account.get_master_account()
+      master_balance = Account.get_primary_balance(account)
+      balance1 = insert(:balance)
+      balance2 = insert(:balance)
+      minted_token = insert(:minted_token)
+      _mint = mint!(minted_token)
+
+      transfer!(
+        master_balance.address,
+        balance1.address,
+        minted_token,
+        200_000 * minted_token.subunit_to_unit
+      )
+
+      response =
+        provider_request_with_idempotency("/transfer", UUID.generate(), %{
+          from_address: balance1.address,
+          to_address: balance2.address,
+          token_id: minted_token.id,
+          amount: 100_000 * minted_token.subunit_to_unit,
+          metadata: %{something: "interesting"},
+          encrypted_metadata: %{something: "secret"}
+        })
+
+      transfer = get_last_inserted(Transfer)
+      assert transfer.metadata == %{"something" => "interesting"}
+      assert transfer.encrypted_metadata == %{"something" => "secret"}
+
+      assert response == %{
+               "success" => true,
+               "version" => "1",
+               "data" => %{
+                 "object" => "list",
+                 "data" => [
+                   %{
+                     "object" => "address",
+                     "socket_topic" => "address:#{balance1.address}",
+                     "address" => balance1.address,
+                     "balances" => [
+                       %{
+                         "object" => "balance",
+                         "amount" => 100_000 * minted_token.subunit_to_unit,
+                         "minted_token" => %{
+                           "name" => minted_token.name,
+                           "object" => "minted_token",
+                           "subunit_to_unit" => 100,
+                           "id" => minted_token.id,
+                           "symbol" => minted_token.symbol,
+                           "metadata" => %{},
+                           "encrypted_metadata" => %{},
+                           "created_at" => Date.to_iso8601(minted_token.inserted_at),
+                           "updated_at" => Date.to_iso8601(minted_token.updated_at)
+                         }
+                       }
+                     ]
+                   },
+                   %{
+                     "object" => "address",
+                     "socket_topic" => "address:#{balance2.address}",
+                     "address" => balance2.address,
+                     "balances" => [
+                       %{
+                         "object" => "balance",
+                         "amount" => 100_000 * minted_token.subunit_to_unit,
+                         "minted_token" => %{
+                           "id" => minted_token.id,
+                           "name" => minted_token.name,
+                           "object" => "minted_token",
+                           "subunit_to_unit" => 100,
+                           "symbol" => minted_token.symbol,
+                           "metadata" => %{},
+                           "encrypted_metadata" => %{},
+                           "created_at" => Date.to_iso8601(minted_token.inserted_at),
+                           "updated_at" => Date.to_iso8601(minted_token.updated_at)
+                         }
+                       }
+                     ]
+                   }
+                 ]
+               }
+             }
+    end
+
     test "updates the user balance and returns the updated amount" do
       account = Account.get_master_account()
       master_balance = Account.get_primary_balance(account)
