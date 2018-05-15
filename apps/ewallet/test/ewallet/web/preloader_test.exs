@@ -15,7 +15,7 @@ defmodule EWallet.Web.PreloaderTest do
 
       result =
         Transfer
-        |> Preloader.to_query([:minted_token])
+        |> Preloader.to_query([:from_minted_token, :to_minted_token])
         |> Repo.all()
 
       assert Enum.count(result) == 2

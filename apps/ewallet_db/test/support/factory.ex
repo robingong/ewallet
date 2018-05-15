@@ -170,13 +170,17 @@ defmodule EWalletDB.Factory do
   end
 
   def transfer_factory do
+    minted_token = insert(:minted_token)
+
     %Transfer{
       idempotency_token: UUID.generate(),
       payload: %{example: "Payload"},
       metadata: %{some: "metadata"},
-      amount: 100,
-      minted_token: insert(:minted_token),
+      from_amount: 100,
+      from_minted_token: minted_token,
       from_balance: insert(:balance),
+      to_amount: 100,
+      to_minted_token: minted_token,
       to_balance: insert(:balance)
     }
   end

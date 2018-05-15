@@ -27,25 +27,58 @@ defmodule EWalletDB.Transfer do
 
   schema "transfer" do
     external_id(prefix: "tfr_")
-
     field(:idempotency_token, :string)
-    field(:amount, EWalletDB.Types.Integer)
+
     # pending -> confirmed
     field(:status, :string, default: @pending)
+
     # internal / external
     field(:type, :string, default: @internal)
+
     # Payload received from client
     field(:payload, Cloak.EncryptedMapField)
+
     # Response returned by ledger
     field(:ledger_response, Cloak.EncryptedMapField)
+
     field(:metadata, :map, default: %{})
     field(:encrypted_metadata, Cloak.EncryptedMapField, default: %{})
     field(:encryption_version, :binary)
 
+    timestamps()
+
+    #########################
+    # Source-related fields #
+    #########################
+
+    field(:from_amount, EWalletDB.Types.Integer)
+
     belongs_to(
-      :minted_token,
+      :from_minted_token,
       MintedToken,
-      foreign_key: :minted_token_uuid,
+      foreign_key: :from_minted_token_uuid,
+      references: :uuid,
+      type: UUID
+    )
+
+    belongs_to(
+      :from_balance,
+      Balance,
+      foreign_key: :from,
+      references: :address,
+      type: :string
+    )
+
+    ##############################
+    # Destination-related fields #
+    ##############################
+
+    field(:to_amount, EWalletDB.Types.Integer)
+
+    belongs_to(
+      :to_minted_token,
+      MintedToken,
+      foreign_key: :to_minted_token_uuid,
       references: :uuid,
       type: UUID
     )
@@ -57,16 +90,6 @@ defmodule EWalletDB.Transfer do
       references: :address,
       type: :string
     )
-
-    belongs_to(
-      :from_balance,
-      Balance,
-      foreign_key: :from,
-      references: :address,
-      type: :string
-    )
-
-    timestamps()
   end
 
   defp changeset(%Transfer{} = transfer, attrs) do
@@ -79,20 +102,24 @@ defmodule EWalletDB.Transfer do
       :ledger_response,
       :metadata,
       :encrypted_metadata,
-      :amount,
-      :minted_token_uuid,
-      :to,
-      :from
+      :from_amount,
+      :from_minted_token_uuid,
+      :from,
+      :to_amount,
+      :to_minted_token_uuid,
+      :to
     ])
     |> validate_required([
       :idempotency_token,
       :status,
       :type,
       :payload,
-      :amount,
-      :minted_token_uuid,
-      :to,
+      :from_amount,
+      :from_minted_token_uuid,
       :from,
+      :to_amount,
+      :to_minted_token_uuid,
+      :to,
       :metadata,
       :encrypted_metadata
     ])
@@ -100,9 +127,10 @@ defmodule EWalletDB.Transfer do
     |> validate_inclusion(:type, @types)
     |> validate_immutable(:idempotency_token)
     |> unique_constraint(:idempotency_token)
-    |> assoc_constraint(:minted_token)
-    |> assoc_constraint(:to_balance)
+    |> assoc_constraint(:from_minted_token)
     |> assoc_constraint(:from_balance)
+    |> assoc_constraint(:to_minted_token)
+    |> assoc_constraint(:to_balance)
     |> put_change(:encryption_version, Cloak.version())
   end
 
@@ -162,7 +190,7 @@ defmodule EWalletDB.Transfer do
       %{
         idempotency_token: idempotency_token
       },
-      preload: [:from_balance, :to_balance, :minted_token]
+      preload: [:from_balance, :to_balance, :from_minted_token, :to_minted_token]
     )
   end
 

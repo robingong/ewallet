@@ -13,10 +13,7 @@ defmodule EWallet.Web.V1.TransactionSerializer do
   end
 
   def serialize(%Transfer{} = transaction) do
-    transaction = Preloader.preload(transaction, [:minted_token])
-
-    minted_token_id = Assoc.get(transaction, [:minted_token, :id])
-    minted_token = MintedTokenSerializer.serialize(transaction.minted_token)
+    transaction = Preloader.preload(transaction, [:from_minted_token, :to_minted_token])
 
     # credo:disable-for-next-line
     %{
@@ -26,16 +23,16 @@ defmodule EWallet.Web.V1.TransactionSerializer do
       from: %{
         object: "transaction_source",
         address: transaction.from,
-        amount: transaction.amount,
-        minted_token_id: minted_token_id,
-        minted_token: minted_token
+        amount: transaction.from_amount,
+        minted_token_id: Assoc.get(transaction, [:from_minted_token, :id]),
+        minted_token: MintedTokenSerializer.serialize(transaction.from_minted_token)
       },
       to: %{
         object: "transaction_source",
         address: transaction.to,
-        amount: transaction.amount,
-        minted_token_id: minted_token_id,
-        minted_token: minted_token
+        amount: transaction.to_amount,
+        minted_token_id: Assoc.get(transaction, [:to_minted_token, :id]),
+        minted_token: MintedTokenSerializer.serialize(transaction.to_minted_token)
       },
       exchange: %{
         object: "exchange",

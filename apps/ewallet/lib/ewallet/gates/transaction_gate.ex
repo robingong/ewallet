@@ -14,10 +14,32 @@ defmodule EWallet.TransactionGate do
 
   ## Examples
 
+  To process a same minted-token transaction:
+
     res = Transaction.process_with_addresses(%{
       "from_address" => "81e75f46-ee14-4e4c-a1e5-cddcb26dce9c",
       "to_address" => "4aa07691-2f99-4cb1-b36c-50763e2d2ba8",
       "token_id" => "tok_OMG_01cbffwvj6ma9a9gg1tb24880q",
+      "amount" => 100_000,
+      "metadata" => %{some: "data"},
+      "encrypted_metadata" => %{some: "secret"},
+      "idempotency_token" => idempotency_token
+    })
+
+    case res do
+      {:ok, transfer, changed_balances, minted_token} ->
+        # Everything went well, do something.
+      {:error, transfer, code, description} ->
+        # Something went wrong with the transfer processing.
+    end
+
+  To process a cross minted-token transaction:
+
+    res = Transaction.process_with_addresses(%{
+      "from_address" => "81e75f46-ee14-4e4c-a1e5-cddcb26dce9c",
+      "from_token_id" => "tok_OMG_01cbffwvj6ma9a9gg1tb24880q",
+      "to_address" => "4aa07691-2f99-4cb1-b36c-50763e2d2ba8",
+      "to_token_id" => "tok_ETH_01cdgyzk93y8h4mwb7zewtympf",
       "amount" => 100_000,
       "metadata" => %{some: "data"},
       "encrypted_metadata" => %{some: "secret"},
@@ -37,6 +59,24 @@ defmodule EWallet.TransactionGate do
           "from_address" => _,
           "to_address" => _,
           "token_id" => _,
+          "amount" => _,
+          "idempotency_token" => _
+        } = attrs
+      ) do
+    with {:ok, from, to, minted_token} <- AddressRecordFetcher.fetch(attrs),
+         {:ok, transfer} <- get_or_insert_transfer(from, to, minted_token, attrs) do
+      process_with_transfer(transfer, [from, to], minted_token)
+    else
+      error -> error
+    end
+  end
+
+  def process_with_addresses(
+        %{
+          "from_address" => _,
+          "from_token_id" => _,
+          "to_address" => _,
+          "to_token_id" => _,
           "amount" => _,
           "idempotency_token" => _
         } = attrs

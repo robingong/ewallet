@@ -33,8 +33,7 @@ defmodule EWalletAPI.V1.TransferControllerTest do
              }
     end
 
-    test "updates the user balance and returns the updated amount when transferring
-          the same minted token" do
+    test "updates the user balance and returns the updated amount using token_id" do
       account = Account.get_master_account()
       master_balance = Account.get_primary_balance(account)
       balance1 = insert(:balance)
@@ -49,8 +48,10 @@ defmodule EWalletAPI.V1.TransferControllerTest do
         200_000 * minted_token.subunit_to_unit
       )
 
+      idempotency_token = UUID.generate()
+
       response =
-        provider_request_with_idempotency("/transfer", UUID.generate(), %{
+        provider_request_with_idempotency("/transfer", idempotency_token, %{
           from_address: balance1.address,
           to_address: balance2.address,
           token_id: minted_token.id,
@@ -60,6 +61,7 @@ defmodule EWalletAPI.V1.TransferControllerTest do
         })
 
       transfer = get_last_inserted(Transfer)
+      assert transfer.idempotency_token == idempotency_token
       assert transfer.metadata == %{"something" => "interesting"}
       assert transfer.encrypted_metadata == %{"something" => "secret"}
 
@@ -118,7 +120,8 @@ defmodule EWalletAPI.V1.TransferControllerTest do
              }
     end
 
-    test "updates the user balance and returns the updated amount" do
+    test "updates the user balance and returns the updated amount using from_token_id and
+          to_token_id" do
       account = Account.get_master_account()
       master_balance = Account.get_primary_balance(account)
       balance1 = insert(:balance)
@@ -133,19 +136,18 @@ defmodule EWalletAPI.V1.TransferControllerTest do
         200_000 * minted_token.subunit_to_unit
       )
 
+      idempotency_token = UUID.generate()
+
       response =
-        provider_request_with_idempotency("/transfer", UUID.generate(), %{
+        provider_request_with_idempotency("/transfer", idempotency_token, %{
           from_address: balance1.address,
+          from_token_id: minted_token.id,
           to_address: balance2.address,
-          token_id: minted_token.id,
+          to_token_id: minted_token.id,
           amount: 100_000 * minted_token.subunit_to_unit,
           metadata: %{something: "interesting"},
           encrypted_metadata: %{something: "secret"}
         })
-
-      transfer = get_last_inserted(Transfer)
-      assert transfer.metadata == %{"something" => "interesting"}
-      assert transfer.encrypted_metadata == %{"something" => "secret"}
 
       assert response == %{
                "success" => true,
@@ -200,6 +202,11 @@ defmodule EWalletAPI.V1.TransferControllerTest do
                  ]
                }
              }
+
+      transfer = get_last_inserted(Transfer)
+      assert transfer.idempotency_token == idempotency_token
+      assert transfer.metadata == %{"something" => "interesting"}
+      assert transfer.encrypted_metadata == %{"something" => "secret"}
     end
 
     test "returns a 'same_address' error when the addresses are the same" do

@@ -52,7 +52,9 @@ defmodule EWalletDB.TransferTest do
         |> Transfer.insert()
 
       transfers =
-        Transfer |> Repo.all() |> Repo.preload([:from_balance, :to_balance, :minted_token])
+        Transfer
+        |> Repo.all()
+        |> Repo.preload([:from_balance, :to_balance, :from_minted_token, :to_minted_token])
 
       assert transfers == [transfer]
     end
@@ -75,10 +77,12 @@ defmodule EWalletDB.TransferTest do
 
       assert changeset.errors == [
                idempotency_token: {"can't be blank", [validation: :required]},
-               amount: {"can't be blank", [validation: :required]},
-               minted_token_uuid: {"can't be blank", [validation: :required]},
-               to: {"can't be blank", [validation: :required]},
-               from: {"can't be blank", [validation: :required]}
+               from_amount: {"can't be blank", [validation: :required]},
+               from_minted_token_uuid: {"can't be blank", [validation: :required]},
+               from: {"can't be blank", [validation: :required]},
+               to_amount: {"can't be blank", [validation: :required]},
+               to_minted_token_uuid: {"can't be blank", [validation: :required]},
+               to: {"can't be blank", [validation: :required]}
              ]
     end
   end
